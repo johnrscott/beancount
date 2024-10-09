@@ -15,6 +15,8 @@ from beancount.core import realization
 from beancount.utils import misc_utils
 from beancount.ops import balance
 
+from pprint import pprint
+
 __plugins__ = ("pad",)
 
 
@@ -48,16 +50,32 @@ def pad(entries, options_map):
     pad_dict = misc_utils.groupby(lambda x: x.account, pads)
 
     # Partially realize the postings, so we can iterate them by account.
+    # This is a map from account name to "postings", which are the parts
+    # of the transactions showing where money is transferred from and to.
+    # This needs to be flattened and sorted by date, so that it is a list
+    # of all postings (by date), where each list item stores both the
+    # date and the posting. This will make it possible to iterate over
+    # the pads in date order and make modifications in place.
     by_account = realization.postings_by_account(entries)
 
+    print()
+    pprint(by_account["Assets:Natwest:John:Current"])
+    print()
+    exit()
+    
     # A dict of pad -> list of entries to be inserted.
     new_entries = {id(pad): [] for pad in pads}
 
     # Process each account that has a padding group.
     for account_, pad_list in sorted(pad_dict.items()):
+
         # Last encountered / currency active pad entry.
         active_pad = None
 
+        print()
+        pprint(f"Account {account_}")
+        print()
+        
         # Gather all the postings for the account and its children.
         postings = []
         is_child = account.parent_matcher(account_)
@@ -70,8 +88,14 @@ def pad(entries, options_map):
         padded_lots = set()
 
         pad_balance = inventory.Inventory()
+        print(f"Pad balance: {pad_balance}")
         for entry in postings:
             assert not isinstance(entry, data.Posting)
+
+            print()
+            pprint(f"Posting: {entry}")
+            print()
+            
             if isinstance(entry, data.TxnPosting):
                 # This is a transaction; update the running balance for this
                 # account.
